@@ -1,0 +1,24 @@
+{
+  "name": "videocorner",
+  "version": "1.0.0",
+  "description": "a backend for youtube like platform",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "mongod"
+  ],
+  "author": "cherish kansara\\",
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^3.1.10",
+    "prettier": "^3.5.3"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "mongoose": "^8.15.1"
+  }
+}
