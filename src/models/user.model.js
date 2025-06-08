@@ -1,7 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
-import { JWT_ACCESS_TOKEN_EXPIRY, JWT_ACCESS_TOKEN_SECRET, JWT_REFRESH_TOKEN_EXPIRY, JWT_REFRESH_TOKEN_SECRET } from "../config/env";
+import { JWT_ACCESS_TOKEN_EXPIRY, JWT_ACCESS_TOKEN_SECRET, JWT_REFRESH_TOKEN_EXPIRY, JWT_REFRESH_TOKEN_SECRET } from "../config/env.js";
 
 const userSchema = new Schema({
     username: {
@@ -32,7 +32,7 @@ const userSchema = new Schema({
     coverImage: {
         type: String, // cloudinary url
     },
-    watchHistrory: [
+    watchHistory: [
         {
             type: Schema.Types.ObjectId,
             ref: "Video"
@@ -49,7 +49,7 @@ const userSchema = new Schema({
     timestamps:true
 })
 
-userSchema.pre("save",async function() {
+userSchema.pre("save",async function(next) {
     if(!this.isModified("password")) return;
     this.password = await bcrypt.hash(this.password,10)
     next()
