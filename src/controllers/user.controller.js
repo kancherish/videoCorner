@@ -7,6 +7,30 @@ import {ApiResponse} from "../utils/ApiResponse.js"
 let coverImagePath;
 let avatarPath;
 
+const generateRefreshAndAccessToken =  async(userId)=>{
+   try {
+      
+      const user = await User.findById(userId)
+
+      if (!user) {
+         throw new Error("User Doesn't Exists")
+      }
+
+      const accessToken = User.generateAccessToken()
+      const refreshToken = User.generateRefreshToken()
+
+      user.refreshToken = refreshToken
+
+      await user.save({validationBeforeSave:false})
+
+      return {accessToken,refreshToken}
+
+   } catch (error) {
+      console.log(error)
+      throw error
+   }
+}
+
 
 const registerUser = async (req,res,next)=>{
 
@@ -85,4 +109,51 @@ const registerUser = async (req,res,next)=>{
 
 }
 
-export {registerUser}
+
+const loginUser = async (req,res)=>{
+
+   const {username,email,password} = req.body
+
+   if (!username || !email || !password) {
+      const error = new Error("missing field")
+      error.statusCode = 406
+      throw error
+   }
+
+   const user = await User.findOne({
+      $or:[{username},{email}]
+   })
+
+   if (!user) {
+      const error = new Error("User doesnt exist")
+      error.statusCode = 404
+      throw error
+   }
+
+   const isPasswordValid = await user.isPasswordCorrect(password)
+
+   if (!isPasswordValid) {
+      const error = new Error("Invalid Password")
+      error.statusCode = 401
+      throw error
+   }
+
+   const {accessToken,refreshToken} = await generateRefreshAndAccessToken(user._id)
+
+   const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+
+   const options = {
+      httpOnly:true,
+      secure:true
+   }
+
+   return res
+   .status(200)
+   .cookie("accessToken",accessToken,options)
+   .cookie("refreshToken",refreshToken,options)
+   .json(new ApiResponse(200,loggedInUser,"User Logged In"))
+
+
+}
+
+export {registerUser,loginUser}
