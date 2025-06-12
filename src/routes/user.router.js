@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { registerUser } from "../controllers/user.controller.js";
+import { loginUser, logoutUser, registerUser } from "../controllers/user.controller.js";
 import Upload from "../middleware/multer.middleware.js"
+import checkRefreshToken from "../middleware/auth.middleware.js";
 
 const userRouter = Router();
 
-userRouter.get("/register",Upload.fields([
+userRouter.post("/register",Upload.fields([
     {
         name:"avatar",
         maxCount:1
@@ -14,6 +15,10 @@ userRouter.get("/register",Upload.fields([
         maxCount:1
     }
 ]),registerUser)
+
+userRouter.post("/login",loginUser)
+
+userRouter.post("/logout",checkRefreshToken,logoutUser)
 
 
 export default userRouter
