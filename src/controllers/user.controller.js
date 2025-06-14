@@ -3,6 +3,7 @@ import uploadOnCloudinary, { DeleteFromCloudinary } from "../config/cloudinary.j
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt from "jsonwebtoken"
 import { JWT_REFRESH_TOKEN_SECRET } from "../config/env.js";
+import { cloudinaryFileIdRegex } from "../utils/consts.js";
 
 
 //global variables for extending scoping
@@ -162,26 +163,179 @@ const loginUser = async (req, res) => {
 const logoutUser = async (req, res) => {
    await User.findOneAndUpdate(req.user._id,
       {
-         $unset:{
-            refreshToken : 1
+         $unset: {
+            refreshToken: 1
          }
       }
    )
 
 
-    const options = {
-        httpOnly: true,
-        secure: true
-    }
+   const options = {
+      httpOnly: true,
+      secure: true
+   }
 
-    req
-    .status(200)
-    .clearCookie("accessToken")
-    .clearCookie("refreshToken")
-    .json(200,{},"User Logged Out")
+   req
+      .status(200)
+      .clearCookie("accessToken")
+      .clearCookie("refreshToken")
+      .json(200, {}, "User Logged Out")
 
 }
 
+
+
+
+// Access Token Authorize routes
+
+const changePassword = async (req, res) => {
+   try {
+      const { oldPassword, newPassword } = req.body
+
+      if (!oldPassword || !newPassword) {
+         return res.status(422).json(new ApiResponse(422, {}, "both new password and oldPassword requires"))
+      }
+
+      const user = await User.findById(req.user?._id)
+      const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+
+      if (!isPasswordCorrect) {
+         throw new ApiError(400, "Invalid old password")
+      }
+
+      await User.findByIdAndUpdate(req.user._id, { $set: { password: newPassword } })
+
+      return req.json(204).json(new ApiResponse(204, {}, "password update"))
+
+   } catch (error) {
+      console.log(error);
+      throw new Error("updation failed")
+   }
+}
+
+const getCurrentUser = async (req, res) => {
+   return res
+      .status(200)
+      .json(new ApiResponse(
+         200,
+         req.user,
+         "User fetched successfully"
+      ))
+}
+
+
+const updateAccountDetails = async (req, res) => {
+   try {
+      const { fullname, email } = req.body
+
+      if (!fullname || !email) {
+         return res.status(400).json(new ApiResponse(400, {}, "all fields are required"))
+      }
+
+      const user = User.findByIdAndUpdate(req.user._id, {
+         $set: {
+            fullname, email
+         }
+      }, { new: true }).select("-password")
+
+      if (!user) {
+         throw new Error("Something went wrong while updating data")
+      }
+
+      return res.status(200)
+         .json(200, user, "User Deatils updated sucessfully")
+
+   } catch (error) {
+      console.log(error);
+      throw new Error("failed to uppdate account")
+   }
+}
+
+
+const updateAvatarImg = async (req, res) => {
+   let newAvatarfile;
+   try {
+      const avatarLocalPath = req.file?.path;
+
+      if (!avatarLocalPath) {
+         return res.status(400)
+            .json(400, {}, "Failed to update avatar img")
+      }
+
+      const fileId = req.user.avatar.match(cloudinaryFileIdRegex)
+
+      newAvatarfile = uploadOnCloudinary(avatarLocalPath)
+
+      if (!newAvatarfile.url) {
+         return res.status(400)
+            .json(400, {}, "Failed to update avatar img")
+      }
+
+      const user = await User.findByIdAndUpdate(req.user?._id, {
+         $set: {
+            avatar: newAvatarfile.url
+         }
+      })
+
+      await DeleteFromCloudinary(fileId)
+
+      return res.status(200)
+         .json(200, user, "Avatar sucessfully uploaded")
+
+
+   } catch (error) {
+      if (newAvatarfile.public_id) {
+         await DeleteFromCloudinary(newAvatarfile.public_id)
+      }
+      console.log(error)
+      throw new Error("failed to update avatar img")
+   }
+}
+
+
+
+const updateCoverImg = async (req, res) => {
+   let newCoverImagefile;
+   try {
+      const coverImgLocalPath = req.file?.path;
+
+      if (!coverImgLocalPath) {
+         return res.status(400)
+            .json(400, {}, "Failed to update avatar img")
+      }
+
+      const fileId = req.user.coverImage.match(cloudinaryFileIdRegex)
+
+      newCoverImagefile = uploadOnCloudinary(coverImgLocalPath)
+
+      if (!newCoverImagefile.url) {
+         return res.status(400)
+            .json(400, {}, "Failed to update cover img")
+      }
+
+      const user = await User.findByIdAndUpdate(req.user?._id, {
+         $set: {
+            coverImage: newCoverImagefile.url
+         }
+      })
+      
+
+      await DeleteFromCloudinary(fileId)
+
+      return res.status(200)
+         .json(200, user, "Cover sucessfully uploaded")
+
+
+   } catch (error) {
+      if (newCoverImagefile.public_id) {
+         await DeleteFromCloudinary(newCoverImagefile.public_id)
+      }
+      console.log(error)
+      throw new Error("failed to update Cover img")
+   }
+}
+
+// Refresh Token Authorize routes
 
 const refreshAccessToken = async (req, res) => {
    let refreshToken;
@@ -225,4 +379,4 @@ const refreshAccessToken = async (req, res) => {
 
 }
 
-export { registerUser, loginUser, refreshAccessToken, logoutUser }
+export { registerUser, loginUser, refreshAccessToken, logoutUser, changePassword, getCurrentUser, updateAccountDetails,updateAvatarImg,updateCoverImg }
